@@ -1,6 +1,9 @@
 package generics
 
-import "sync"
+import (
+	"encoding/json"
+	"sync"
+)
 
 // Slice is a thread-safe generic slice-based list.
 // It uses RWMutex to ensure safe concurrent reads and writes.
@@ -131,4 +134,23 @@ func (l *Slice[T]) Clone() *Slice[T] {
 	c := make([]T, len(l.data))
 	copy(c, l.data)
 	return &Slice[T]{data: c}
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (l *Slice[T]) MarshalJSON() ([]byte, error) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return json.Marshal(l.data)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (l *Slice[T]) UnmarshalJSON(b []byte) error {
+	var data []T
+	if err := json.Unmarshal(b, &data); err != nil {
+		return err
+	}
+	l.mu.Lock()
+	l.data = data
+	l.mu.Unlock()
+	return nil
 }

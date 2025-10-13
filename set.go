@@ -1,5 +1,7 @@
 package generics
 
+import "encoding/json"
+
 // Empty is a zero-size struct to use as the value type in the Set map.
 type Empty struct{}
 
@@ -71,4 +73,25 @@ func (s *Set[T]) Clone() *Set[T] {
 		return true
 	})
 	return set
+}
+
+// Len returns the number of items in the set.
+func (s *Set[T]) MarshalJSON() ([]byte, error) {
+	items := make([]T, 0)
+	s.m.Range(func(item T, _ Empty) bool {
+		items = append(items, item)
+		return true
+	})
+	return json.Marshal(items)
+}
+
+// UnmarshalJSON unmarshals a JSON array into the set.
+func (s *Set[T]) UnmarshalJSON(data []byte) error {
+	var items []T
+	if err := json.Unmarshal(data, &items); err != nil {
+		return err
+	}
+	s.Clear()
+	s.Insert(items...)
+	return nil
 }

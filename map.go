@@ -1,6 +1,9 @@
 package generics
 
-import "sync"
+import (
+	"encoding/json"
+	"sync"
+)
 
 // Map is a concurrent map with generic key and value types.
 type Map[K comparable, V any] struct {
@@ -96,4 +99,21 @@ func (m *Map[K, V]) Clone() *Map[K, V] {
 		return true
 	})
 	return clone
+}
+
+// MarshalJSON implements the json.Marshaler interface for the Map type.
+func (m *Map[K, V]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.ToMap())
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface for the Map type.
+func (m *Map[K, V]) UnmarshalJSON(data []byte) error {
+	tmp := make(map[K]V)
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	for k, v := range tmp {
+		m.Store(k, v)
+	}
+	return nil
 }
