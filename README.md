@@ -4,18 +4,18 @@ Lightweight, type-safe generic containers for Go with concurrency-friendly APIs.
 
 Included containers:
 
-- List[T] — a thread-safe, slice-backed list (uses `sync.RWMutex`).
-- Map[K,V] — a type-safe wrapper around `sync.Map`.
 - Set[T] — a generic set built on top of Map.
+- Map[K,V] — a type-safe wrapper around `sync.Map`.
+- Slice[T] — a thread-safe, slice-backed list (uses `sync.RWMutex`).
 
 Great for simple, robust concurrent read/write scenarios. Zero dependencies, easy to integrate.
 
 ## Features
 
 - Type-safe APIs via Go generics.
-- Concurrency aware: List uses `RWMutex`; Map wraps `sync.Map`.
-- Snapshot operations: `List.Range` iterates over a snapshot; `ToSlice`/`ToMap` return copies.
-- Familiar, minimal APIs: `NewList`/`NewMap`/`NewSet`, plus `Clone`, `Clear`, etc.
+- Concurrency aware: Slice uses `RWMutex`; Map wraps `sync.Map`.
+- Snapshot operations: `Slice.Range` iterates over a snapshot; `ToSlice`/`ToMap` return copies.
+- Familiar, minimal APIs: `NewSlice`/`NewMap`/`NewSet`, plus `Clone`, `Clear`, etc.
 - Standard library only, no external deps.
 
 Requirements: Go 1.19+ (generics + newer `sync.Map` APIs).
@@ -28,7 +28,7 @@ go get github.com/go-kratos/generics@latest
 
 ## Quick Start
 
-### List[T]
+### Set[T]
 
 ```go
 package main
@@ -39,26 +39,19 @@ import (
 )
 
 func main() {
-    l := generics.NewList[int](1, 2, 3)
-    l.Append(4, 5)  // append 4, 5
-    l.Insert(1, 99) // insert at index
+    s := generics.NewSet[string]("a", "b")
+    s.Insert("c").Delete("b")
 
-    if v, ok := l.Get(1); ok {
-        fmt.Println(v) // 99
-    }
+    fmt.Println(s.Has("a"))         // true
+    fmt.Println(s.HasAny("x", "c")) // true
+    fmt.Println(s.HasAll("a", "c")) // true
 
-    // iterate over a snapshot
-    l.Range(func(i int, v int) bool {
-        fmt.Printf("%d:%d ", i, v)
-        return true
-    })
-    fmt.Println()
-
-    fmt.Println(l.ToSlice())
+    t := s.Clone()
+    fmt.Println(t.HasAll("a", "c")) // true
 }
 ```
 
-Common methods: `Append`, `Get`, `Set`, `RemoveAt`, `Range`, `ToSlice`, `Clone`, `Len`, `Clear`.
+Common methods: `Insert`, `Delete`, `Has`, `HasAny`, `HasAll`, `Clear`, `Clone`.
 
 ### Map[K,V]
 
@@ -92,7 +85,7 @@ func main() {
 
 Common methods: `Store`, `Load`, `LoadOrStore`, `LoadAndDelete`, `Delete`, `Clear`, `Range`, `ToMap`, `Clone`.
 
-### Set[T]
+### Slice[T]
 
 ```go
 package main
@@ -103,27 +96,36 @@ import (
 )
 
 func main() {
-    s := generics.NewSet[string]("a", "b")
-    s.Insert("c").Delete("b")
+    l := generics.NewSlice[int](1, 2, 3)
+    l.Append(4, 5)  // append 4, 5
+    l.Insert(1, 99) // insert at index
 
-    fmt.Println(s.Has("a"))         // true
-    fmt.Println(s.HasAny("x", "c")) // true
-    fmt.Println(s.HasAll("a", "c")) // true
+    if v, ok := l.Get(1); ok {
+        fmt.Println(v) // 99
+    }
 
-    t := s.Clone()
-    fmt.Println(t.HasAll("a", "c")) // true
+    // iterate over a snapshot
+    l.Range(func(i int, v int) bool {
+        fmt.Printf("%d:%d ", i, v)
+        return true
+    })
+    fmt.Println()
+
+    fmt.Println(l.ToSlice())
 }
 ```
 
-Common methods: `Insert`, `Delete`, `Has`, `HasAny`, `HasAll`, `Clear`, `Clone`.
+Common methods: `Append`, `Get`, `Set`, `RemoveAt`, `Range`, `Slice/SliceStart/SliceEnd`, `ToSlice`, `Clone`, `Len`, `Clear`.
+
+
 
 ## Concurrency Notes
 
-- List: write ops are mutex-protected; `Range`/`ToSlice` work on a snapshot to avoid long-held locks.
+- Slice: write ops are mutex-protected; `Range`/`ToSlice` work on a snapshot to avoid long-held locks.
 - Map: type-safe wrapper over `sync.Map`; good for read-heavy or cross-goroutine sharing.
 - Set: built on top of the concurrent Map; methods are safe for concurrent use.
 
-Note: `List.Range` copies the underlying slice; for very large lists, consider memory impact. `ToSlice`/`ToMap` similarly return copies.
+Note: `Slice.Range` copies the underlying slice; for very large lists, consider memory impact. `ToSlice`/`ToMap` similarly return copies.
 
 ## Design Choices
 
