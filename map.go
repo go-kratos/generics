@@ -1,10 +1,15 @@
-package syncmap
+package generics
 
 import "sync"
 
 // Map is a concurrent map with generic key and value types.
 type Map[K comparable, V any] struct {
 	sync.Map
+}
+
+// NewMap creates and returns a new Map instance.
+func NewMap[K comparable, V any]() *Map[K, V] {
+	return &Map[K, V]{}
 }
 
 // Clear removes all entries from the map.
@@ -74,10 +79,20 @@ func (m *Map[K, V]) Swap(key, value any) (previous any, loaded bool) {
 }
 
 // Clone creates and returns a shallow copy of the map as a standard map.
-func (m *Map[K, V]) Clone() map[K]V {
+func (m *Map[K, V]) ToMap() map[K]V {
 	clone := make(map[K]V)
 	m.Range(func(key K, value V) bool {
 		clone[key] = value
+		return true
+	})
+	return clone
+}
+
+// Clone creates and returns a shallow copy of the Map.
+func (m *Map[K, V]) Clone() *Map[K, V] {
+	clone := NewMap[K, V]()
+	m.Range(func(key K, value V) bool {
+		clone.Store(key, value)
 		return true
 	})
 	return clone

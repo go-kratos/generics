@@ -1,91 +1,144 @@
-  # Generic Map
+# go-kratos/generics
 
-  A tiny, type-safe wrapper around Go’s sync.Map using generics. It provides a typed API for concurrent maps so you can avoid manual casting while keeping sync.Map’s performance characteristics and
-  semantics.
+Lightweight, type-safe generic containers for Go with concurrency-friendly APIs.
 
-  - Type-safe keys and values via generics
-  - Thin wrapper over sync.Map for familiar behavior
-  - Convenience methods like Clone and Clear
+Included containers:
 
-  ## Installation
+- List[T] — a thread-safe, slice-backed list (uses `sync.RWMutex`).
+- Map[K,V] — a type-safe wrapper around `sync.Map`.
+- Set[T] — a generic set built on top of Map.
 
-  - go get github.com/go-kratos/syncmap
-  - Import: import "github.com/go-kratos/syncmap"
+Great for simple, robust concurrent read/write scenarios. Zero dependencies, easy to integrate.
 
-  Requires a Go version with generics support (Go 1.18+). The module currently declares go 1.24 in go.mod.
+## Features
 
-  ## Quick Start
-  package main
+- Type-safe APIs via Go generics.
+- Concurrency aware: List uses `RWMutex`; Map wraps `sync.Map`.
+- Snapshot operations: `List.Range` iterates over a snapshot; `ToSlice`/`ToMap` return copies.
+- Familiar, minimal APIs: `NewList`/`NewMap`/`NewSet`, plus `Clone`, `Clear`, etc.
+- Standard library only, no external deps.
 
-  import (
-  	"fmt"
+Requirements: Go 1.19+ (generics + newer `sync.Map` APIs).
 
-  	"github.com/go-kratos/syncmap"
-  )
+## Install
 
-  func main() {
-  	var m syncmap.Map[string, int]
+```bash
+go get github.com/go-kratos/generics@latest
+```
 
-  	// Store and Load
-  	m.Store("a", 1)
-  	if v, ok := m.Load("a"); ok {
-  		fmt.Println("a =", v) // a = 1
-  	}
+## Quick Start
 
-  	// LoadOrStore
-  	v, loaded := m.LoadOrStore("b", 42)
-  	fmt.Println("b =", v, "loaded =", loaded) // b = 42 loaded = false
+### List[T]
 
-  	// CompareAndSwap (parity with sync.Map)
-  	swapped := m.CompareAndSwap("b", 42, 43)
-  	fmt.Println("b swapped =", swapped) // true
+```go
+package main
 
-  	// Swap (returns previous value, if any)
-  	prev, existed := m.Swap("a", 2)
-  	fmt.Println("prev a =", prev, "existed =", existed) // prev a = 1 existed = true
+import (
+    "fmt"
+    "github.com/go-kratos/generics"
+)
 
-  	// Range over entries
-  	m.Range(func(k string, v int) bool {
-  		fmt.Printf("%s => %d\n", k, v)
-  		return true
-  	})
+func main() {
+    l := generics.NewList[int](1, 2, 3)
+    l.Append(4, 5)  // append 4, 5
+    l.Insert(1, 99) // insert at index
 
-  	// Clone to a regular map snapshot
-  	clone := m.Clone()
-  	fmt.Println("clone[a] =", clone["a"]) // clone[a] = 2
+    if v, ok := l.Get(1); ok {
+        fmt.Println(v) // 99
+    }
 
-  	// Delete and Clear
-  	m.Delete("a")
-  	m.Clear()
-  }
-  ## API
+    // iterate over a snapshot
+    l.Range(func(i int, v int) bool {
+        fmt.Printf("%d:%d ", i, v)
+        return true
+    })
+    fmt.Println()
 
-  Typed wrapper methods mirroring sync.Map:
+    fmt.Println(l.ToSlice())
+}
+```
 
-  - func (m *Map[K, V]) Store(key K, value V)
-  - func (m *Map[K, V]) Load(key K) (V, bool)
-  - func (m *Map[K, V]) LoadOrStore(key K, value V) (V, bool)
-  - func (m *Map[K, V]) LoadAndDelete(key K) (value V, loaded bool)
-  - func (m *Map[K, V]) Delete(key K)
-  - func (m *Map[K, V]) Range(f func(key K, value V) bool)
-  - func (m *Map[K, V]) Clear()
-  - func (m *Map[K, V]) CompareAndDelete(key K, value V) (deleted bool)
-  - func (m *Map[K, V]) CompareAndSwap(key, old, new any) (swapped bool)  // parity with sync.Map
-  - func (m *Map[K, V]) Swap(key, value any) (previous any, loaded bool)  // parity with sync.Map
-  - func (m *Map[K, V]) Clone() map[K]V  // shallow snapshot
+Common methods: `Append`, `Get`, `Set`, `RemoveAt`, `Range`, `ToSlice`, `Clone`, `Len`, `Clear`.
 
-  Notes:
+### Map[K,V]
 
-  - CompareAndSwap and Swap use any parameters to match sync.Map signatures.
-  - Clone returns a snapshot; it doesn’t stay in sync with the original map.
+```go
+package main
 
-  ## Usage Notes
+import (
+    "fmt"
+    "github.com/go-kratos/generics"
+)
 
-  - Semantics are identical to sync.Map: best suited for highly concurrent, read-heavy workloads and dynamically changing keys.
-  - For simple, write-heavy cases with stable keys, a regular map with sync.RWMutex may be more efficient.
+func main() {
+    m := generics.NewMap[string, int]()
+    m.Store("a", 1)
 
-  ## License
+    if v, ok := m.Load("a"); ok {
+        fmt.Println(v) // 1
+    }
 
-  MIT License. See LICENSE.
+    v, ok = m.LoadOrStore("b", 2)
 
-  Would you like me to create README.md with this content in the repository? If yes, I’ll add the file now.
+    m.Range(func(k string, v int) bool {
+        fmt.Println(k, v)
+        return true
+    })
+
+    // copy into a built-in map
+    fmt.Println(m.ToMap())
+}
+```
+
+Common methods: `Store`, `Load`, `LoadOrStore`, `LoadAndDelete`, `Delete`, `Clear`, `Range`, `ToMap`, `Clone`.
+
+### Set[T]
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/go-kratos/generics"
+)
+
+func main() {
+    s := generics.NewSet[string]("a", "b")
+    s.Insert("c").Delete("b")
+
+    fmt.Println(s.Has("a"))         // true
+    fmt.Println(s.HasAny("x", "c")) // true
+    fmt.Println(s.HasAll("a", "c")) // true
+
+    t := s.Clone()
+    fmt.Println(t.HasAll("a", "c")) // true
+}
+```
+
+Common methods: `Insert`, `Delete`, `Has`, `HasAny`, `HasAll`, `Clear`, `Clone`.
+
+## Concurrency Notes
+
+- List: write ops are mutex-protected; `Range`/`ToSlice` work on a snapshot to avoid long-held locks.
+- Map: type-safe wrapper over `sync.Map`; good for read-heavy or cross-goroutine sharing.
+- Set: built on top of the concurrent Map; methods are safe for concurrent use.
+
+Note: `List.Range` copies the underlying slice; for very large lists, consider memory impact. `ToSlice`/`ToMap` similarly return copies.
+
+## Design Choices
+
+- Prefer simplicity: keep the surface area small and familiar.
+- Readability first: names are aligned with standard library conventions.
+- Reliability: built solely on standard library concurrency primitives.
+
+## Roadmap
+
+- Additional containers: queue, stack, ring buffer, etc.
+- More helpers and converters.
+- More docs and examples.
+
+Contributions via Issues/PRs are welcome!
+
+## License
+
+MIT License. See `LICENSE` for details.
