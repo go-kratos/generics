@@ -65,6 +65,16 @@ func (s *Set[T]) HasAny(items ...T) bool {
 	return false
 }
 
+// ToSlice returns the items in the set as a slice.
+func (s *Set[T]) ToSlice() []T {
+	items := make([]T, 0)
+	s.m.Range(func(item T, _ Empty) bool {
+		items = append(items, item)
+		return true
+	})
+	return items
+}
+
 // Clone creates a copy of the set.
 func (s *Set[T]) Clone() *Set[T] {
 	set := NewSet[T]()

@@ -11,8 +11,14 @@ type Map[K comparable, V any] struct {
 }
 
 // NewMap creates and returns a new Map instance.
-func NewMap[K comparable, V any]() *Map[K, V] {
-	return &Map[K, V]{}
+func NewMap[K comparable, V any](ms ...map[K]V) *Map[K, V] {
+	m := &Map[K, V]{}
+	for _, n := range ms {
+		for k, v := range n {
+			m.Store(k, v)
+		}
+	}
+	return m
 }
 
 // Clear removes all entries from the map.
