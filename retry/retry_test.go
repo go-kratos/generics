@@ -11,7 +11,7 @@ import (
 func TestRetrySucceedsAfterTransientFailures(t *testing.T) {
 	var attempts int32
 	r := New(
-		WithAttempts(3),
+		3,
 		WithBaseDelay(time.Microsecond),
 		WithMaxDelay(time.Microsecond),
 		WithMultiplier(1),
@@ -36,7 +36,7 @@ func TestRetryStopsWhenNotRetryable(t *testing.T) {
 	wantErr := errors.New("permanent")
 	var calls int
 	r := New(
-		WithAttempts(5),
+		5,
 		WithRetryable(func(err error) bool { return !errors.Is(err, wantErr) }),
 	)
 
@@ -58,6 +58,7 @@ func TestBackoffOptionsApplied(t *testing.T) {
 	mult := 2.5
 	jitter := 0.15
 	r := New(
+		2,
 		WithBaseDelay(base),
 		WithMaxDelay(max),
 		WithMultiplier(mult),

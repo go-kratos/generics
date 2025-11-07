@@ -6,17 +6,10 @@ import (
 )
 
 // defaultRetry is a retry configuration with the default values.
-var defaultRetry = New()
+var defaultRetry = New(2)
 
 // Option is retry option.
 type Option func(*Retry)
-
-// WithAttempts with attempts.
-func WithAttempts(n int) Option {
-	return func(o *Retry) {
-		o.attempts = n
-	}
-}
 
 // WithRetryable with retryable.
 func WithRetryable(r Retryable) Option {
@@ -72,9 +65,9 @@ type Retry struct {
 }
 
 // New new a retry with backoff.
-func New(opts ...Option) *Retry {
+func New(attempts int, opts ...Option) *Retry {
 	r := &Retry{
-		attempts:  2,
+		attempts:  attempts,
 		retryable: func(err error) bool { return true },
 		backoff:   defaultBackoff(),
 	}
@@ -116,6 +109,6 @@ func Do(ctx context.Context, fn func(context.Context) error) error {
 
 // Infinite wraps func with a backoff to retry.
 func Infinite(ctx context.Context, fn func(context.Context) error) error {
-	r := New(WithAttempts(-1))
+	r := New(-1)
 	return r.Do(ctx, fn)
 }
