@@ -1,4 +1,4 @@
-package generics
+package slices
 
 import (
 	"encoding/json"
@@ -12,8 +12,8 @@ type Slice[T any] struct {
 	data []T
 }
 
-// NewSlice creates a new Slice with optional initial elements.
-func NewSlice[T any](items ...T) *Slice[T] {
+// New creates a new Slice with optional initial elements.
+func New[T any](items ...T) *Slice[T] {
 	d := make([]T, 0, len(items))
 	d = append(d, items...)
 	return &Slice[T]{data: d}

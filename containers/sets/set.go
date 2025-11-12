@@ -1,17 +1,21 @@
-package generics
+package sets
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/go-kratos/kit/containers/maps"
+)
 
 // Empty is a zero-size struct to use as the value type in the Set map.
 type Empty struct{}
 
 // Set is a generic set of comparable items.
 type Set[T comparable] struct {
-	m Map[T, Empty]
+	m maps.Map[T, Empty]
 }
 
-// NewSet creates a Set from the given items.
-func NewSet[T comparable](items ...T) *Set[T] {
+// New creates a Set from the given items.
+func New[T comparable](items ...T) *Set[T] {
 	set := &Set[T]{}
 	set.Insert(items...)
 	return set
@@ -77,7 +81,7 @@ func (s *Set[T]) ToSlice() []T {
 
 // Clone creates a copy of the set.
 func (s *Set[T]) Clone() *Set[T] {
-	set := NewSet[T]()
+	set := New[T]()
 	s.m.Range(func(item T, _ Empty) bool {
 		set.Insert(item)
 		return true

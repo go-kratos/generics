@@ -1,4 +1,4 @@
-package generics
+package maps
 
 import (
 	"encoding/json"
@@ -10,8 +10,8 @@ type Map[K comparable, V any] struct {
 	m sync.Map
 }
 
-// NewMap creates and returns a new Map instance.
-func NewMap[K comparable, V any](ms ...map[K]V) *Map[K, V] {
+// New creates and returns a new Map instance.
+func New[K comparable, V any](ms ...map[K]V) *Map[K, V] {
 	m := &Map[K, V]{}
 	for _, n := range ms {
 		for k, v := range n {
@@ -99,7 +99,7 @@ func (m *Map[K, V]) ToMap() map[K]V {
 
 // Clone creates and returns a shallow copy of the Map.
 func (m *Map[K, V]) Clone() *Map[K, V] {
-	clone := NewMap[K, V]()
+	clone := New[K, V]()
 	m.Range(func(key K, value V) bool {
 		clone.Store(key, value)
 		return true
