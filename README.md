@@ -1,146 +1,195 @@
-# go-kratos/generics
+# go-kratos/kit
 
-Lightweight, type-safe generic containers for Go with concurrency-friendly APIs.
+轻量、类型安全的通用工具包，包含并发友好的泛型容器与简洁的重试器。
 
-Included containers:
+内置包：
 
-- Set[T] — a generic set built on top of Map.
-- Map[K,V] — a type-safe wrapper around `sync.Map`.
-- Slice[T] — a thread-safe, slice-backed list (uses `sync.RWMutex`).
+- containers/maps：基于 `sync.Map` 的类型安全泛型 Map。
+- containers/sets：基于 Map 的泛型 Set。
+- containers/slices：使用 `sync.RWMutex` 封装的并发安全 Slice 列表。
+- retry：带指数退避的通用重试器，可配置重试条件与退避参数。
 
-Great for simple, robust concurrent read/write scenarios. Zero dependencies, easy to integrate.
+仅依赖标准库，易于集成到任意项目。
 
-## Features
-
-- Type-safe APIs via Go generics.
-- Concurrency aware: Slice uses `RWMutex`; Map wraps `sync.Map`.
-- Snapshot operations: `Slice.Range` iterates over a snapshot; `ToSlice`/`ToMap` return copies.
-- Familiar, minimal APIs: `NewSlice`/`NewMap`/`NewSet`, plus `Clone`, `Clear`, etc.
-- Standard library only, no external deps.
-
-Requirements: Go 1.19+ (generics + newer `sync.Map` APIs).
-
-## Install
+## 安装
 
 ```bash
-go get github.com/go-kratos/generics@latest
+go get github.com/go-kratos/kit@latest
 ```
 
-## Quick Start
+按需引入子包，例如：
 
-### Set[T]
+```go
+import (
+    "github.com/go-kratos/kit/containers/maps"
+    "github.com/go-kratos/kit/containers/sets"
+    "github.com/go-kratos/kit/containers/slices"
+    "github.com/go-kratos/kit/retry"
+)
+```
+
+## 快速开始
+
+### containers/sets.Set[T]
 
 ```go
 package main
 
 import (
     "fmt"
-    "github.com/go-kratos/generics"
+    "github.com/go-kratos/kit/containers/sets"
 )
 
 func main() {
-    s := generics.NewSet[string]("a", "b")
+    s := sets.New[string]("a", "b")
     s.Insert("c").Delete("b")
 
-    fmt.Println(s.Has("a"))         // true
-    fmt.Println(s.HasAny("x", "c")) // true
-    fmt.Println(s.HasAll("a", "c")) // true
+    fmt.Println(s.Has("a"))          // true
+    fmt.Println(s.HasAny("x", "c"))  // true
+    fmt.Println(s.HasAll("a", "c"))  // true
 
     t := s.Clone()
-    fmt.Println(t.HasAll("a", "c")) // true
+    fmt.Println(t.HasAll("a", "c"))  // true
+
+    fmt.Println(s.ToSlice())           // [a c]（顺序不保证）
 }
 ```
 
-Common methods: `Insert`, `Delete`, `Has`, `HasAny`, `HasAll`, `Clear`, `Clone`.
+常用方法：`Insert`、`Delete`、`Has`、`HasAny`、`HasAll`、`Clear`、`Clone`、`ToSlice`。
 
-### Map[K,V]
+JSON 支持：Set 会被编码为元素数组；解码时会填充集合。
+
+### containers/maps.Map[K,V]
 
 ```go
 package main
 
 import (
     "fmt"
-    "github.com/go-kratos/generics"
+    "github.com/go-kratos/kit/containers/maps"
 )
 
 func main() {
-    m := generics.NewMap[string, int]()
+    m := maps.New[string, int]()
     m.Store("a", 1)
 
     if v, ok := m.Load("a"); ok {
         fmt.Println(v) // 1
     }
 
-    v, ok = m.LoadOrStore("b", 2)
+    if v, loaded := m.LoadOrStore("b", 2); !loaded {
+        fmt.Println(v) // 2（首次存入）
+    }
 
     m.Range(func(k string, v int) bool {
         fmt.Println(k, v)
         return true
     })
 
-    // copy into a built-in map
+    // 拷贝为内建 map
     fmt.Println(m.ToMap())
+
+    // 克隆为新的并发 Map
+    mm := m.Clone()
+    _ = mm
 }
 ```
 
-Common methods: `Store`, `Load`, `LoadOrStore`, `LoadAndDelete`, `Delete`, `Clear`, `Range`, `ToMap`, `Clone`.
+常用方法：`Store`、`Load`、`LoadOrStore`、`LoadAndDelete`、`Delete`、`Clear`、`Range`、`ToMap`、`Clone`。
 
-### Slice[T]
+JSON 支持：直接序列化/反序列化为对象（map）。
+
+### containers/slices.Slice[T]
 
 ```go
 package main
 
 import (
     "fmt"
-    "github.com/go-kratos/generics"
+    "github.com/go-kratos/kit/containers/slices"
 )
 
 func main() {
-    l := generics.NewSlice[int](1, 2, 3)
-    l.Append(4, 5)  // append 4, 5
-    l.Insert(1, 99) // insert at index
+    l := slices.New[int](1, 2, 3)
+    l.Append(4, 5)
 
     if v, ok := l.Get(1); ok {
-        fmt.Println(v) // 99
+        fmt.Println(v) // 2
     }
 
-    // iterate over a snapshot
+    // 设置与删除
+    _ = l.Set(1, 99)
+    if v, ok := l.RemoveAt(0); ok {
+        fmt.Println("removed:", v) // 1
+    }
+
+    // 快照遍历
     l.Range(func(i int, v int) bool {
         fmt.Printf("%d:%d ", i, v)
         return true
     })
     fmt.Println()
 
-    fmt.Println(l.ToSlice())
+    fmt.Println(l.ToSlice()) // 返回副本
 }
 ```
 
-Common methods: `Append`, `Get`, `Set`, `RemoveAt`, `Range`, `Slice/SliceStart/SliceEnd`, `ToSlice`, `Clone`, `Len`, `Clear`.
+常用方法：`Append`、`Get`、`Set`、`RemoveAt`、`Range`、`Slice`/`SliceStart`/`SliceEnd`、`ToSlice`、`Clone`、`Len`、`Clear`。
 
+JSON 支持：序列化/反序列化为数组；内部做并发保护。
 
+### retry 重试器
 
-## Concurrency Notes
+```go
+package main
 
-- Slice: write ops are mutex-protected; `Range`/`ToSlice` work on a snapshot to avoid long-held locks.
-- Map: type-safe wrapper over `sync.Map`; good for read-heavy or cross-goroutine sharing.
-- Set: built on top of the concurrent Map; methods are safe for concurrent use.
+import (
+    "context"
+    "errors"
+    "fmt"
+    "time"
+    "github.com/go-kratos/kit/retry"
+)
 
-Note: `Slice.Range` copies the underlying slice; for very large lists, consider memory impact. `ToSlice`/`ToMap` similarly return copies.
+func main() {
+    // 最多重试 3 次，且仅对临时错误重试
+    r := retry.New(
+        3,
+        retry.WithRetryable(func(err error) bool { return errors.Is(err, context.DeadlineExceeded) }),
+        retry.WithBaseDelay(10*time.Millisecond),
+        retry.WithMaxDelay(1*time.Second),
+        retry.WithMultiplier(1.6),
+        retry.WithJitter(0.2),
+    )
 
-## Design Choices
+    err := r.Do(context.Background(), func(ctx context.Context) error {
+        // 你的业务逻辑
+        return context.DeadlineExceeded
+    })
 
-- Prefer simplicity: keep the surface area small and familiar.
-- Readability first: names are aligned with standard library conventions.
-- Reliability: built solely on standard library concurrency primitives.
+    fmt.Println("done:", err)
+}
+```
 
-## Roadmap
+便捷方法：
 
-- Additional containers: queue, stack, ring buffer, etc.
-- More helpers and converters.
-- More docs and examples.
+- `retry.Do(ctx, fn)`：使用默认配置重试。
+- `retry.Infinite(ctx, fn)`：无限次重试（直到成功或 `ctx` 结束）。
 
-Contributions via Issues/PRs are welcome!
+可调参数：`WithBaseDelay`、`WithMaxDelay`、`WithMultiplier`、`WithJitter`、`WithRetryable`。
 
-## License
+## 并发与性能说明
 
-MIT License. See `LICENSE` for details.
+- slices：写操作使用互斥锁保护；`Range`、`ToSlice` 基于快照，避免长时间持锁。
+- maps：类型安全封装 `sync.Map`，适合读多写少或跨 goroutine 共享场景。
+- sets：基于并发 Map 构建，方法并发安全。
+
+注意：`Slice.Range` 会复制底层切片；超大列表遍历时需考虑内存开销。`ToSlice`/`ToMap` 均返回副本。
+
+## 版本要求
+
+需要支持泛型的 Go 版本（Go 1.18+）。
+
+## 许可证
+
+MIT，详见 `LICENSE`。
